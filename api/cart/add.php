@@ -1,109 +1,108 @@
 <?php
+require_once __DIR__ . '/../../includes/init.php';
+
 header('Content-Type: application/json');
-require_once __DIR__ . '/../../includes/db.php';
-session_start();
 
-$data = json_decode(file_get_contents('php://input'), true);
-$response = ['success' => false, 'message' => ''];
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $product_id = $data['product_id'] ?? 0;
-    $quantity = $data['quantity'] ?? 1;
+try {
+    // Kiểm tra method
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception('Invalid request method');
+    }
+    
+    // Lấy dữ liệu JSON
+    $data = json_decode(file_get_contents('php://input'), true);
+    
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new Exception('Invalid JSON data');
+    }
+    
+    $product_id = isset($data['product_id']) ? intval($data['product_id']) : 0;
+    $quantity = isset($data['quantity']) ? intval($data['quantity']) : 1;
     
     if ($product_id <= 0) {
-        $response['message'] = 'Sản phẩm không hợp lệ';
-        echo json_encode($response);
-        exit;
+        throw new Exception('Invalid product ID');
+    }
+    
+    if ($quantity <= 0) {
+        throw new Exception('Invalid quantity');
     }
     
     $db = Database::getInstance();
+    $functions = new Functions();
     
-    // Check if product exists and is active
+    // Kiểm tra sản phẩm tồn tại
     $product = $db->selectOne(
-        "SELECT * FROM products WHERE id = ? AND status = 'active'",
-        [$product_id]
+        "SELECT id, name, price, sale_price, stock_quantity FROM products 
+         WHERE id = ? AND status = ?",
+        [$product_id, PRODUCT_ACTIVE]
     );
     
     if (!$product) {
-        $response['message'] = 'Sản phẩm không tồn tại hoặc đã ngừng kinh doanh';
-        echo json_encode($response);
-        exit;
+        throw new Exception('Product not found or not available');
     }
     
-    // Check stock
+    // Kiểm tra số lượng tồn kho
     if ($product['stock_quantity'] < $quantity) {
-        $response['message'] = 'Số lượng sản phẩm không đủ trong kho';
-        echo json_encode($response);
-        exit;
+        throw new Exception('Insufficient stock');
     }
     
-    $user_id = $_SESSION['user_id'] ?? null;
-    $session_id = session_id();
+    $user_id = null;
+    $session_id = null;
     
-    try {
-        if ($user_id) {
-            // User is logged in
-            $existing = $db->selectOne(
-                "SELECT * FROM cart WHERE user_id = ? AND product_id = ?",
-                [$user_id, $product_id]
-            );
-            
-            if ($existing) {
-                $db->update(
-                    "UPDATE cart SET quantity = quantity + ? WHERE id = ?",
-                    [$quantity, $existing['id']]
-                );
-            } else {
-                $db->insert('cart', [
-                    'user_id' => $user_id,
-                    'product_id' => $product_id,
-                    'quantity' => $quantity,
-                    'created_at' => date('Y-m-d H:i:s')
-                ]);
-            }
-        } else {
-            // Guest user
-            $existing = $db->selectOne(
-                "SELECT * FROM cart WHERE session_id = ? AND product_id = ? AND user_id IS NULL",
-                [$session_id, $product_id]
-            );
-            
-            if ($existing) {
-                $db->update(
-                    "UPDATE cart SET quantity = quantity + ? WHERE id = ?",
-                    [$quantity, $existing['id']]
-                );
-            } else {
-                $db->insert('cart', [
-                    'session_id' => $session_id,
-                    'product_id' => $product_id,
-                    'quantity' => $quantity,
-                    'created_at' => date('Y-m-d H:i:s')
-                ]);
-            }
+    // Kiểm tra người dùng đã đăng nhập chưa
+    if ($functions->isLoggedIn()) {
+        $user_id = $_SESSION['user_id'];
+    } else {
+        // Tạo session_id cho khách
+        if (!isset($_SESSION['cart_session_id'])) {
+            $_SESSION['cart_session_id'] = session_id();
         }
-        
-        // Get updated cart count
-        if ($user_id) {
-            $cartCount = $db->selectOne(
-                "SELECT SUM(quantity) as total FROM cart WHERE user_id = ?",
-                [$user_id]
-            )['total'] ?? 0;
-        } else {
-            $cartCount = $db->selectOne(
-                "SELECT SUM(quantity) as total FROM cart WHERE session_id = ? AND user_id IS NULL",
-                [$session_id]
-            )['total'] ?? 0;
-        }
-        
-        $response['success'] = true;
-        $response['message'] = 'Đã thêm vào giỏ hàng';
-        $response['cart_count'] = $cartCount;
-        
-    } catch (Exception $e) {
-        $response['message'] = 'Lỗi hệ thống: ' . $e->getMessage();
+        $session_id = $_SESSION['cart_session_id'];
     }
+    
+    // Kiểm tra sản phẩm đã có trong giỏ chưa
+    if ($user_id) {
+        $existingCart = $db->selectOne(
+            "SELECT id, quantity FROM cart 
+             WHERE user_id = ? AND product_id = ?",
+            [$user_id, $product_id]
+        );
+    } else {
+        $existingCart = $db->selectOne(
+            "SELECT id, quantity FROM cart 
+             WHERE session_id = ? AND product_id = ?",
+            [$session_id, $product_id]
+        );
+    }
+    
+    if ($existingCart) {
+        // Cập nhật số lượng
+        $db->update(
+            'cart',
+            ['quantity' => $existingCart['quantity'] + $quantity],
+            'id = ?',
+            [$existingCart['id']]
+        );
+    } else {
+        // Thêm mới
+        $db->insert('cart', [
+            'user_id' => $user_id,
+            'session_id' => $session_id,
+            'product_id' => $product_id,
+            'quantity' => $quantity
+        ]);
+    }
+    
+    echo json_encode([
+        'success' => true,
+        'message' => SUCCESS_CART_ADDED,
+        'cart_count' => $functions->getCartCount()
+    ]);
+    
+} catch (Exception $e) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
 }
-
-echo json_encode($response);
-?>

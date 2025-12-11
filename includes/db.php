@@ -100,8 +100,14 @@ class Database {
         $values = [];
         
         foreach ($data as $column => $value) {
-            $set[] = "{$column} = ?";
-            $values[] = $value;
+            if (is_array($value) && isset($value['raw'])) {
+                // Nếu là expression (vd: 'views + 1')
+                $set[] = "{$column} = {$value['raw']}";
+            } else {
+                // Nếu là giá trị bình thường
+                $set[] = "{$column} = ?";
+                $values[] = $value;
+            }
         }
         
         $setClause = implode(', ', $set);

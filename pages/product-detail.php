@@ -28,9 +28,12 @@ if (!$product) {
 }
 
 // Update view count
+// Sử dụng expression
 $db->update(
-    "UPDATE products SET views = views + 1 WHERE id = ?",
-    [$product_id]
+    'products',                     // $table
+    ['views' => ['raw' => 'views + 1']],  // Expression
+    'id = ?',                       // $where
+    [$product_id]                   // $whereParams
 );
 
 // Get related products
@@ -734,6 +737,7 @@ $breadcrumbItems = [
 </div>
 
 <script>
+
 // Product detail page JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     // Image thumbnail switching
@@ -779,7 +783,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
     // Add to cart
     const addToCartBtn = document.getElementById('addToCartBtn');
     if (addToCartBtn) {

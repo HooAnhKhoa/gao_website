@@ -24,7 +24,7 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="carousel-caption d-none d-md-block">
                     <h2 class="display-4 fw-bold">Gạo ST25</h2>
                     <p class="lead">Gạo ngon nhất thế giới 2021 - Hương vị đặc biệt từ Sóc Trăng</p>
-                    <a href="pages/product-detail.php?id=1" class="btn btn-success btn-lg mt-3">Mua ngay</a>
+                    <a href="pages/products.php" class="btn btn-success btn-lg mt-3">Mua ngay</a>
                 </div>
             </div>
             <div class="carousel-item">
@@ -32,7 +32,7 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="carousel-caption d-none d-md-block">
                     <h2 class="display-4 fw-bold">Gạo Hữu Cơ</h2>
                     <p class="lead">100% tự nhiên, không hóa chất - Bảo vệ sức khỏe gia đình bạn</p>
-                    <a href="pages/products.php?category=5" class="btn btn-success btn-lg mt-3">Khám phá</a>
+                    <a href="pages/products.php" class="btn btn-success btn-lg mt-3">Khám phá</a>
                 </div>
             </div>
             <div class="carousel-item">

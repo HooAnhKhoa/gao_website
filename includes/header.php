@@ -78,10 +78,10 @@
                                 <i class="fas fa-sign-out-alt me-1"></i>Đăng xuất
                             </a>
                         <?php else: ?>
-                            <a href="pages/login.php" class="text-white text-decoration-none me-3">
+                            <a href="http://www.localhost:81/gao_website/pages/login.php" class="text-white text-decoration-none me-3">
                                 <i class="fas fa-sign-in-alt me-1"></i>Đăng nhập
                             </a>
-                            <a href="pages/register.php" class="text-white text-decoration-none">
+                            <a href="http://www.localhost:81/gao_website/pages/register.php" class="text-white text-decoration-none">
                                 <i class="fas fa-user-plus me-1"></i>Đăng ký
                             </a>
                         <?php endif; ?>
@@ -160,7 +160,7 @@
             <div class="collapse navbar-collapse" id="mainNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link active" href="index.php">
+                        <a class="nav-link active" href="../index.php">
                             <i class="fas fa-home me-1"></i>Trang chủ
                         </a>
                     </li>
