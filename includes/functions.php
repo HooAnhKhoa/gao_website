@@ -1,5 +1,4 @@
 <?php
-// includes/functions.php
 class Functions {
     private $db;
     
@@ -85,26 +84,32 @@ class Functions {
         return null;
     }
     
+    // === [ĐOẠN MÃ ĐÃ SỬA LỖI] ===
     // Lấy số lượng giỏ hàng
     public static function getCartCount() {
         $db = Database::getInstance();
         
         if (self::isLoggedIn()) {
-            // Đã đăng nhập
+            // Đã đăng nhập: Lấy theo user_id
             return $db->selectOne(
                 "SELECT SUM(quantity) as total FROM cart WHERE user_id = ?",
                 [$_SESSION['user_id']]
             )['total'] ?? 0;
-        } elseif (isset($_SESSION['session_id'])) {
-            // Khách vãng lai
-            return $db->selectOne(
-                "SELECT SUM(quantity) as total FROM cart WHERE session_id = ?",
-                [session_id()]
-            )['total'] ?? 0;
+        } else {
+            // Khách vãng lai: Lấy trực tiếp từ session_id() của hệ thống
+            // SỬA: Bỏ kiểm tra isset($_SESSION['session_id']) vì sai logic
+            $sid = session_id();
+            if ($sid) {
+                return $db->selectOne(
+                    "SELECT SUM(quantity) as total FROM cart WHERE session_id = ?",
+                    [$sid]
+                )['total'] ?? 0;
+            }
         }
         
         return 0;
     }
+    // =============================
     
     // Tạo mã đơn hàng
     public static function generateOrderCode() {
@@ -320,7 +325,7 @@ class Functions {
                  WHERE c.user_id = ? AND p.status = ?",
                 [$_SESSION['user_id'], PRODUCT_ACTIVE]
             );
-        } elseif (isset($_SESSION['session_id'])) {
+        } elseif (session_id()) { // SỬA: Kiểm tra session_id trực tiếp
             $cartItems = $db->select(
                 "SELECT c.*, p.name, p.price, p.sale_price, p.image, p.stock_quantity 
                  FROM cart c 

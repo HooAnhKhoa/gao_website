@@ -1,5 +1,15 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+
+// Xác định base path cho assets
+// Kiểm tra xem file đang được gọi từ thư mục nào
+$current_dir = dirname($_SERVER['SCRIPT_NAME']);
+$is_in_pages = strpos($current_dir, '/pages') !== false;
+
+// Xác định đường dẫn tương đối đúng
+$assets_path = $is_in_pages ? '../assets/' : 'assets/';
+$api_path = $is_in_pages ? '../api/' : 'api/';
+$pages_path = $is_in_pages ? './' : 'pages/';
 ?>
 
     </main>
@@ -30,12 +40,12 @@ require_once __DIR__ . '/../config/database.php';
                     <h5 class="text-uppercase mb-4">Liên kết nhanh</h5>
                     <ul class="list-unstyled">
                         <li class="mb-2">
-                            <a href="index.php" class="text-light text-decoration-none">
+                            <a href="<?php echo $is_in_pages ? '../index.php' : 'index.php'; ?>" class="text-light text-decoration-none">
                                 <i class="fas fa-chevron-right me-1 text-warning"></i>Trang chủ
                             </a>
                         </li>
                         <li class="mb-2">
-                            <a href="pages/products.php" class="text-light text-decoration-none">
+                            <a href="<?php echo $pages_path; ?>products.php" class="text-light text-decoration-none">
                                 <i class="fas fa-chevron-right me-1 text-warning"></i>Sản phẩm
                             </a>
                         </li>
@@ -70,7 +80,7 @@ require_once __DIR__ . '/../config/database.php';
                         foreach ($footerCategories as $category):
                         ?>
                         <li class="mb-2">
-                            <a href="pages/products.php?category=<?php echo $category['id']; ?>" 
+                            <a href="<?php echo $pages_path; ?>products.php?category=<?php echo $category['id']; ?>" 
                                class="text-light text-decoration-none">
                                 <i class="fas fa-chevron-right me-1 text-warning"></i>
                                 <?php echo htmlspecialchars($category['name']); ?>
@@ -113,11 +123,11 @@ require_once __DIR__ . '/../config/database.php';
                 <div class="col-md-6">
                     <h6 class="text-uppercase mb-3">Phương thức thanh toán</h6>
                     <div class="payment-methods">
-                        <img src="assets/images/payment/cod.png" alt="COD" class="me-2 mb-2" height="30">
-                        <img src="assets/images/payment/bank-transfer.png" alt="Chuyển khoản" class="me-2 mb-2" height="30">
-                        <img src="assets/images/payment/momo.png" alt="Momo" class="me-2 mb-2" height="30">
-                        <img src="assets/images/payment/visa.png" alt="Visa" class="me-2 mb-2" height="30">
-                        <img src="assets/images/payment/mastercard.png" alt="MasterCard" class="me-2 mb-2" height="30">
+                        <img src="<?php echo $assets_path; ?>images/payment/cod.png" alt="COD" class="me-2 mb-2" height="30">
+                        <img src="<?php echo $assets_path; ?>images/payment/bank-transfer.png" alt="Chuyển khoản" class="me-2 mb-2" height="30">
+                        <img src="<?php echo $assets_path; ?>images/payment/momo.png" alt="Momo" class="me-2 mb-2" height="30">
+                        <img src="<?php echo $assets_path; ?>images/payment/visa.png" alt="Visa" class="me-2 mb-2" height="30">
+                        <img src="<?php echo $assets_path; ?>images/payment/mastercard.png" alt="MasterCard" class="me-2 mb-2" height="30">
                     </div>
                 </div>
                 <div class="col-md-6 text-md-end">
@@ -166,7 +176,7 @@ require_once __DIR__ . '/../config/database.php';
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- Custom JS -->
-    <script src="assets/js/main.js"></script>
+    <script src="<?php echo $assets_path; ?>js/main.js"></script>
     
     <!-- Additional Scripts -->
     <?php if (isset($additionalScripts)): ?>
@@ -196,47 +206,68 @@ require_once __DIR__ . '/../config/database.php';
 
     // Update cart count
     function updateCartCount() {
-        fetch('api/cart/get.php')
-            .then(response => response.json())
+        fetch('<?php echo $api_path; ?>cart/get.php')
+            .then(response => {
+                // Kiểm tra response
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
+                if (data.success) {
+                    const cartElements = document.querySelectorAll('.cart-count');
+                    cartElements.forEach(element => {
+                        element.textContent = data.total_items || 0;
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error updating cart count:', error);
+                // Fallback: hiển thị 0 nếu có lỗi
                 const cartElements = document.querySelectorAll('.cart-count');
                 cartElements.forEach(element => {
-                    element.textContent = data.total_items || 0;
+                    element.textContent = 0;
                 });
-            })
-            .catch(error => console.error('Error updating cart count:', error));
+            });
     }
 
     // Initialize cart count on page load
     document.addEventListener('DOMContentLoaded', updateCartCount);
 
-    // Add to cart function
-    function addToCart(productId, quantity = 1) {
-        fetch('api/cart/add.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                product_id: productId,
-                quantity: quantity
+    // Add to cart function - sử dụng đường dẫn API đúng
+    if (typeof window.addToCart === 'undefined') {
+        window.addToCart = function(productId, quantity = 1) {
+            fetch('<?php echo $api_path; ?>cart/add.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    product_id: productId,
+                    quantity: quantity
+                })
             })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Show success message
-                showNotification(data.message || 'Đã thêm vào giỏ hàng!', 'success');
-                // Update cart count
-                updateCartCount();
-            } else {
-                showNotification(data.message || 'Có lỗi xảy ra!', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Lỗi kết nối!', 'error');
-        });
+            .then(response => {
+                // Kiểm tra response
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message || 'Đã thêm vào giỏ hàng!', 'success');
+                    updateCartCount();
+                } else {
+                    showNotification(data.message || 'Có lỗi xảy ra!', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Lỗi kết nối! Vui lòng thử lại sau.', 'error');
+            });
+        };
     }
 
     // Notification function
@@ -318,6 +349,11 @@ require_once __DIR__ . '/../config/database.php';
         }
     `;
     document.head.appendChild(style);
+    
+    // Thêm biến global để các file khác có thể sử dụng
+    window.SITE_URL = '<?php echo SITE_URL; ?>';
+    window.ASSETS_PATH = '<?php echo $assets_path; ?>';
+    window.API_PATH = '<?php echo $api_path; ?>';
     </script>
 </body>
 </html>

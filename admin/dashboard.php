@@ -1,10 +1,10 @@
 <?php
-session_start();
-require_once '../includes/functions.php';
+// Load init trước để có kết nối DB, Functions và hằng số SITE_URL
+require_once '../includes/init.php';
 
-// Check admin authentication
+// Kiểm tra quyền Admin
 if (!Functions::isLoggedIn() || !Functions::isAdmin()) {
-    header('Location: login.php');
+    header('Location: ' . SITE_URL . '/pages/login.php');
     exit;
 }
 
@@ -78,24 +78,20 @@ $monthly_revenue = $db->select("
 ");
 ?>
 
-<!-- Dashboard Content -->
 <div class="container-fluid px-4">
-    <!-- Page Header -->
     <div class="page-header mb-4">
         <h1 class="h2 fw-bold text-success mb-3">
             <i class="fas fa-tachometer-alt me-2"></i>Dashboard
         </h1>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="dashboard.php">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="<?php echo SITE_URL; ?>/admin/dashboard.php">Dashboard</a></li>
                 <li class="breadcrumb-item active">Tổng quan</li>
             </ol>
         </nav>
     </div>
 
-    <!-- Statistics Cards -->
     <div class="row">
-        <!-- Total Revenue -->
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-primary shadow h-100 py-2">
                 <div class="card-body">
@@ -125,7 +121,6 @@ $monthly_revenue = $db->select("
             </div>
         </div>
 
-        <!-- Total Orders -->
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-success shadow h-100 py-2">
                 <div class="card-body">
@@ -156,7 +151,6 @@ $monthly_revenue = $db->select("
             </div>
         </div>
 
-        <!-- Total Customers -->
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-info shadow h-100 py-2">
                 <div class="card-body">
@@ -183,7 +177,6 @@ $monthly_revenue = $db->select("
             </div>
         </div>
 
-        <!-- Products -->
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-left-warning shadow h-100 py-2">
                 <div class="card-body">
@@ -215,9 +208,7 @@ $monthly_revenue = $db->select("
         </div>
     </div>
 
-    <!-- Charts Row -->
     <div class="row">
-        <!-- Revenue Chart -->
         <div class="col-xl-8 mb-4">
             <div class="card shadow mb-4">
                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
@@ -245,7 +236,6 @@ $monthly_revenue = $db->select("
             </div>
         </div>
 
-        <!-- Pie Chart -->
         <div class="col-xl-4 mb-4">
             <div class="card shadow mb-4">
                 <div class="card-header py-3">
@@ -274,9 +264,7 @@ $monthly_revenue = $db->select("
         </div>
     </div>
 
-    <!-- Recent Orders & Low Stock -->
     <div class="row">
-        <!-- Recent Orders -->
         <div class="col-lg-8 mb-4">
             <div class="card shadow">
                 <div class="card-header py-3 d-flex justify-content-between align-items-center">
@@ -284,7 +272,7 @@ $monthly_revenue = $db->select("
                         <i class="fas fa-shopping-cart me-1"></i>
                         Đơn hàng gần đây
                     </h6>
-                    <a href="orders.php" class="btn btn-sm btn-outline-success">
+                    <a href="<?php echo SITE_URL; ?>/admin/orders.php" class="btn btn-sm btn-outline-success">
                         Xem tất cả <i class="fas fa-arrow-right ms-1"></i>
                     </a>
                 </div>
@@ -305,7 +293,7 @@ $monthly_revenue = $db->select("
                                 <?php foreach ($recent_orders as $order): ?>
                                 <tr>
                                     <td>
-                                        <a href="order-detail.php?id=<?php echo $order['id']; ?>" 
+                                        <a href="<?php echo SITE_URL; ?>/admin/order-detail.php?id=<?php echo $order['id']; ?>" 
                                            class="text-decoration-none fw-bold">
                                             <?php echo $order['order_code']; ?>
                                         </a>
@@ -325,12 +313,12 @@ $monthly_revenue = $db->select("
                                     </td>
                                     <td>
                                         <div class="btn-group">
-                                            <a href="order-detail.php?id=<?php echo $order['id']; ?>" 
+                                            <a href="<?php echo SITE_URL; ?>/admin/order-detail.php?id=<?php echo $order['id']; ?>" 
                                                class="btn btn-sm btn-outline-info" 
                                                title="Xem chi tiết">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            <a href="orders.php?action=edit&id=<?php echo $order['id']; ?>" 
+                                            <a href="<?php echo SITE_URL; ?>/admin/orders.php?action=edit&id=<?php echo $order['id']; ?>" 
                                                class="btn btn-sm btn-outline-warning" 
                                                title="Cập nhật">
                                                 <i class="fas fa-edit"></i>
@@ -346,7 +334,6 @@ $monthly_revenue = $db->select("
             </div>
         </div>
 
-        <!-- Low Stock Products -->
         <div class="col-lg-4 mb-4">
             <div class="card shadow">
                 <div class="card-header py-3 d-flex justify-content-between align-items-center">
@@ -354,18 +341,18 @@ $monthly_revenue = $db->select("
                         <i class="fas fa-exclamation-triangle me-1"></i>
                         Sản phẩm sắp hết hàng
                     </h6>
-                    <a href="products.php?filter=low_stock" class="btn btn-sm btn-outline-danger">
+                    <a href="<?php echo SITE_URL; ?>/admin/products.php?filter=low_stock" class="btn btn-sm btn-outline-danger">
                         Xem tất cả <i class="fas fa-arrow-right ms-1"></i>
                     </a>
                 </div>
                 <div class="card-body">
                     <div class="list-group">
                         <?php foreach ($low_stock as $product): ?>
-                        <a href="products.php?action=edit&id=<?php echo $product['id']; ?>" 
+                        <a href="<?php echo SITE_URL; ?>/admin/products.php?action=edit&id=<?php echo $product['id']; ?>" 
                            class="list-group-item list-group-item-action">
                             <div class="d-flex w-100 justify-content-between align-items-center">
                                 <div class="d-flex align-items-center">
-                                    <img src="../../assets/images/products/<?php echo $product['image'] ?? 'default.jpg'; ?>" 
+                                    <img src="<?php echo SITE_URL; ?>/assets/images/products/<?php echo $product['image'] ?? 'default.jpg'; ?>" 
                                          class="rounded me-3" 
                                          alt="<?php echo htmlspecialchars($product['name']); ?>"
                                          style="width: 40px; height: 40px; object-fit: cover;">
@@ -398,7 +385,6 @@ $monthly_revenue = $db->select("
         </div>
     </div>
 
-    <!-- Pending Reviews -->
     <div class="row">
         <div class="col-12 mb-4">
             <div class="card shadow">
@@ -407,7 +393,7 @@ $monthly_revenue = $db->select("
                         <i class="fas fa-star me-1"></i>
                         Đánh giá chờ duyệt
                     </h6>
-                    <a href="reviews.php?status=pending" class="btn btn-sm btn-outline-warning">
+                    <a href="<?php echo SITE_URL; ?>/admin/reviews.php?status=pending" class="btn btn-sm btn-outline-warning">
                         Xem tất cả <i class="fas fa-arrow-right ms-1"></i>
                     </a>
                 </div>
@@ -429,10 +415,11 @@ $monthly_revenue = $db->select("
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <img src="../../assets/images/avatars/<?php echo $review['avatar'] ?? 'default.jpg'; ?>" 
+                                            <img src="<?php echo SITE_URL; ?>/assets/images/avatars/<?php echo $review['avatar'] ?? 'default.jpg'; ?>" 
                                                  class="rounded-circle me-2" 
                                                  alt="<?php echo htmlspecialchars($review['full_name']); ?>"
-                                                 style="width: 30px; height: 30px;">
+                                                 style="width: 30px; height: 30px;"
+                                                 onerror="this.src='https://ui-avatars.com/api/?name=User'">
                                             <?php echo htmlspecialchars($review['full_name']); ?>
                                         </div>
                                     </td>
@@ -462,7 +449,7 @@ $monthly_revenue = $db->select("
                                                     data-id="<?php echo $review['id']; ?>">
                                                 <i class="fas fa-times"></i>
                                             </button>
-                                            <a href="review-detail.php?id=<?php echo $review['id']; ?>" 
+                                            <a href="<?php echo SITE_URL; ?>/admin/review-detail.php?id=<?php echo $review['id']; ?>" 
                                                class="btn btn-outline-info">
                                                 <i class="fas fa-eye"></i>
                                             </a>
@@ -485,7 +472,6 @@ $monthly_revenue = $db->select("
     </div>
 </div>
 
-<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
@@ -581,8 +567,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Order Status Chart
     const statusCtx = document.getElementById('orderStatusChart').getContext('2d');
     
-    // Get order status counts
-    fetch('../api/admin/order-stats.php')
+    // SỬA: Đường dẫn API tuyệt đối
+    fetch(SITE_URL + '/api/admin/order-stats.php')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -646,7 +632,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     function updateReviewStatus(reviewId, status) {
-        fetch('../api/admin/reviews/update.php', {
+        // SỬA: Đường dẫn API tuyệt đối
+        fetch(SITE_URL + '/api/admin/reviews/update.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

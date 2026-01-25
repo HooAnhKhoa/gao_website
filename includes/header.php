@@ -124,13 +124,7 @@
                 <!-- Cart & Actions -->
                 <div class="col-lg-4 col-md-12 order-md-1 order-lg-2 mt-3 mt-lg-0">
                     <div class="header-actions d-flex justify-content-end align-items-center">
-                        <!-- Wishlist -->
-                        <a href="#" class="btn btn-outline-secondary position-relative me-3">
-                            <i class="fas fa-heart"></i>
-                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                3
-                            </span>
-                        </a>
+                        <!-- Wishlist  -->
                         
                         <!-- Cart -->
                         <a href="pages/cart.php" class="btn btn-outline-primary position-relative me-3">
@@ -214,23 +208,7 @@
                         </a>
                     </li>
                     
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="fas fa-newspaper me-1"></i>Tin tức
-                        </a>
-                    </li>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="fas fa-info-circle me-1"></i>Giới thiệu
-                        </a>
-                    </li>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="fas fa-phone-alt me-1"></i>Liên hệ
-                        </a>
-                    </li>
+                   
                 </ul>
                 
                 <!-- Promo Banner -->

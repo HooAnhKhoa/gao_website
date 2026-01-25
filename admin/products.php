@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once '../includes/functions.php';
+require_once '../includes/init.php';
 
 // Check admin authentication
 if (!Functions::isLoggedIn() || !Functions::isAdmin()) {
