@@ -31,12 +31,11 @@ $total_orders = $db->selectOne("SELECT COUNT(*) as total FROM orders WHERE $wher
 $pagination = Functions::paginate($total_orders, $page, $limit);
 
 // Lấy danh sách đơn hàng
+// SỬA: Lấy trực tiếp từ bảng orders, không cần JOIN users vì thông tin đã lưu cứng trong orders
 $orders = $db->select("
-    SELECT o.*, u.full_name as user_name 
-    FROM orders o 
-    LEFT JOIN users u ON o.user_id = u.id 
+    SELECT * FROM orders 
     WHERE $where 
-    ORDER BY o.created_at DESC 
+    ORDER BY created_at DESC 
     LIMIT $limit OFFSET {$pagination['offset']}", 
     $params
 );
@@ -55,7 +54,7 @@ $orders = $db->select("
             <a href="orders.php" class="btn btn-outline-secondary <?php echo $status_filter == '' ? 'active' : ''; ?>">Tất cả</a>
             <a href="orders.php?status=pending" class="btn btn-outline-warning <?php echo $status_filter == 'pending' ? 'active' : ''; ?>">Chờ xử lý</a>
             <a href="orders.php?status=shipping" class="btn btn-outline-primary <?php echo $status_filter == 'shipping' ? 'active' : ''; ?>">Đang giao</a>
-            <a href="orders.php?status=completed" class="btn btn-outline-success <?php echo $status_filter == 'completed' ? 'active' : ''; ?>">Hoàn thành</a>
+            <a href="orders.php?status=delivered" class="btn btn-outline-success <?php echo $status_filter == 'delivered' ? 'active' : ''; ?>">Hoàn thành</a>
             <a href="orders.php?status=cancelled" class="btn btn-outline-danger <?php echo $status_filter == 'cancelled' ? 'active' : ''; ?>">Đã hủy</a>
         </div>
     </div>
@@ -82,10 +81,14 @@ $orders = $db->select("
                     <?php else: ?>
                         <?php foreach ($orders as $order): ?>
                         <tr>
-                            <td class="fw-bold text-primary">#<?php echo $order['order_code']; ?></td>
+                            <td class="fw-bold text-primary">
+                                <a href="order-detail.php?id=<?php echo $order['id']; ?>" class="text-decoration-none">
+                                    #<?php echo $order['order_code']; ?>
+                                </a>
+                            </td>
                             <td>
-                                <div><?php echo htmlspecialchars($order['full_name']); ?></div>
-                                <small class="text-muted"><?php echo $order['phone']; ?></small>
+                                <div class="fw-bold"><?php echo htmlspecialchars($order['customer_name']); ?></div>
+                                <small class="text-muted"><i class="fas fa-phone-alt me-1"></i><?php echo $order['customer_phone']; ?></small>
                             </td>
                             <td><?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?></td>
                             <td class="fw-bold text-danger">
@@ -93,7 +96,14 @@ $orders = $db->select("
                             </td>
                             <td>
                                 <span class="badge bg-light text-dark border">
-                                    <?php echo $order['payment_method'] == 'cod' ? 'COD' : 'Online'; ?>
+                                    <?php 
+                                    $methods = [
+                                        'cod' => 'COD', 
+                                        'bank_transfer' => 'Chuyển khoản', 
+                                        'momo' => 'MoMo'
+                                    ];
+                                    echo $methods[$order['payment_method']] ?? $order['payment_method']; 
+                                    ?>
                                 </span>
                             </td>
                             <td>
@@ -103,14 +113,35 @@ $orders = $db->select("
                                 ?>
                             </td>
                             <td>
-                                <a href="order-detail.php?id=<?php echo $order['id']; ?>" class="btn btn-sm btn-info" title="Xem chi tiết">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <?php if ($order['order_status'] == 'pending'): ?>
-                                <button class="btn btn-sm btn-success confirm-order" data-id="<?php echo $order['id']; ?>" title="Xác nhận">
-                                    <i class="fas fa-check"></i>
-                                </button>
-                                <?php endif; ?>
+                                <div class="btn-group" role="group">
+                                    <a href="order-detail.php?id=<?php echo $order['id']; ?>" class="btn btn-sm btn-info" title="Xem chi tiết">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    
+                                    <?php if ($order['order_status'] == 'pending'): ?>
+                                    <button class="btn btn-sm btn-success update-status" 
+                                            data-id="<?php echo $order['id']; ?>" 
+                                            data-status="processing"
+                                            title="Xác nhận & Giao hàng">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger update-status" 
+                                            data-id="<?php echo $order['id']; ?>" 
+                                            data-status="cancelled"
+                                            title="Hủy đơn">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    <?php endif; ?>
+
+                                    <?php if ($order['order_status'] == 'processing' || $order['order_status'] == 'shipped'): ?>
+                                    <button class="btn btn-sm btn-success update-status" 
+                                            data-id="<?php echo $order['id']; ?>" 
+                                            data-status="delivered"
+                                            title="Đã giao hàng">
+                                        <i class="fas fa-check-double"></i>
+                                    </button>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -138,5 +169,52 @@ $orders = $db->select("
         <?php endif; ?>
     </div>
 </div>
+
+<script>
+// Xử lý cập nhật trạng thái đơn hàng bằng Ajax
+document.addEventListener('DOMContentLoaded', function() {
+    const buttons = document.querySelectorAll('.update-status');
+    
+    buttons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const orderId = this.dataset.id;
+            const status = this.dataset.status;
+            let confirmMsg = 'Bạn có chắc muốn cập nhật trạng thái đơn hàng này?';
+            
+            if (status === 'cancelled') confirmMsg = 'Bạn có chắc chắn muốn HỦY đơn hàng này?';
+            
+            if (confirm(confirmMsg)) {
+                // Gọi API cập nhật (cần tạo file api/admin/orders/update-status.php)
+                // Hoặc gửi request POST về chính trang này nếu xử lý logic ở đây (tuy nhiên dùng API clean hơn)
+                
+                // Demo fetch API:
+                fetch('<?php echo SITE_URL; ?>/api/admin/orders/update-status.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        order_id: orderId,
+                        status: status
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert('Lỗi: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Đã có lỗi xảy ra khi kết nối server.');
+                });
+            }
+        });
+    });
+});
+</script>
 
 <?php require_once 'includes/footer.php'; ?>
