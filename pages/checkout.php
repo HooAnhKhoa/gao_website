@@ -140,6 +140,28 @@ $currentUser = Functions::getCurrentUser();
 </div>
 
 <script>
+// Function để hiển thị thông báo
+function showNotification(message, type = 'info') {
+    // Tạo element thông báo
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    // Thêm vào body
+    document.body.appendChild(notification);
+    
+    // Tự động ẩn sau 5 giây
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
 function processCheckout() {
     // 1. Thu thập dữ liệu form
     const form = document.getElementById('checkoutForm');
@@ -163,8 +185,6 @@ function processCheckout() {
     // 2. Gửi API (Dùng đường dẫn tương đối để tránh lỗi SITE_URL)
     // Từ pages/checkout.php ra api/checkout/process.php thì dùng ../api/...
     const apiUrl = '../api/checkout/process.php';
-    
-    console.log("Đang gọi API tới:", apiUrl); // Xem log này trong F12 nếu lỗi
 
     fetch(apiUrl, {
         method: 'POST',
@@ -177,6 +197,7 @@ function processCheckout() {
         // Kiểm tra xem server có trả về lỗi HTTP không (404, 500...)
         if (!response.ok) {
             const text = await response.text();
+            console.error("HTTP Error:", response.status, text);
             throw new Error(`Server lỗi (${response.status}): ${text}`);
         }
 
@@ -187,8 +208,8 @@ function processCheckout() {
         } else {
             // Nếu server trả về HTML (lỗi PHP Fatal error...)
             const text = await response.text();
-            console.error("Lỗi Server trả về HTML:", text);
-            throw new Error("Server bị lỗi nội bộ. Vui lòng xem Console (F12) để biết chi tiết.");
+            console.error("Server trả về HTML thay vì JSON:", text);
+            throw new Error("Server bị lỗi nội bộ. Vui lòng kiểm tra Console (F12) để biết chi tiết.");
         }
     })
     .then(result => {

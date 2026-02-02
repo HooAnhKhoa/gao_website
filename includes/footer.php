@@ -123,11 +123,21 @@ $pages_path = $is_in_pages ? './' : 'pages/';
                 <div class="col-md-6">
                     <h6 class="text-uppercase mb-3">Phương thức thanh toán</h6>
                     <div class="payment-methods">
-                        <img src="<?php echo $assets_path; ?>images/payment/cod.png" alt="COD" class="me-2 mb-2" height="30">
-                        <img src="<?php echo $assets_path; ?>images/payment/bank-transfer.png" alt="Chuyển khoản" class="me-2 mb-2" height="30">
-                        <img src="<?php echo $assets_path; ?>images/payment/momo.png" alt="Momo" class="me-2 mb-2" height="30">
-                        <img src="<?php echo $assets_path; ?>images/payment/visa.png" alt="Visa" class="me-2 mb-2" height="30">
-                        <img src="<?php echo $assets_path; ?>images/payment/mastercard.png" alt="MasterCard" class="me-2 mb-2" height="30">
+                        <span class="badge bg-success me-2 mb-2">
+                            <i class="fas fa-money-bill-wave me-1"></i>COD
+                        </span>
+                        <span class="badge bg-primary me-2 mb-2">
+                            <i class="fas fa-university me-1"></i>Chuyển khoản
+                        </span>
+                        <span class="badge bg-info me-2 mb-2">
+                            <i class="fas fa-mobile-alt me-1"></i>MoMo
+                        </span>
+                        <span class="badge bg-warning me-2 mb-2">
+                            <i class="fab fa-cc-visa me-1"></i>Visa
+                        </span>
+                        <span class="badge bg-danger me-2 mb-2">
+                            <i class="fab fa-cc-mastercard me-1"></i>MasterCard
+                        </span>
                     </div>
                 </div>
                 <div class="col-md-6 text-md-end">
@@ -210,30 +220,38 @@ $pages_path = $is_in_pages ? './' : 'pages/';
             .then(response => {
                 // Kiểm tra response
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    console.warn('Cart API response not ok:', response.status);
+                    return null; // Không cập nhật nếu API lỗi
                 }
                 return response.json();
             })
             .then(data => {
-                if (data.success) {
+                if (data && data.success) {
                     const cartElements = document.querySelectorAll('.cart-count');
                     cartElements.forEach(element => {
-                        element.textContent = data.total_items || 0;
+                        const newCount = data.total_items || 0;
+                        element.textContent = newCount;
+                        
+                        // Hiển thị/ẩn badge dựa trên count
+                        if (newCount > 0) {
+                            element.style.display = 'inline-flex';
+                        } else {
+                            element.style.display = 'none';
+                        }
                     });
                 }
             })
             .catch(error => {
-                console.error('Error updating cart count:', error);
-                // Fallback: hiển thị 0 nếu có lỗi
-                const cartElements = document.querySelectorAll('.cart-count');
-                cartElements.forEach(element => {
-                    element.textContent = 0;
-                });
+                console.warn('Error updating cart count:', error);
+                // Không làm gì nếu có lỗi - giữ nguyên giá trị hiện tại
             });
     }
 
     // Initialize cart count on page load
-    document.addEventListener('DOMContentLoaded', updateCartCount);
+    document.addEventListener('DOMContentLoaded', function() {
+        // Delay một chút để đảm bảo HTML đã render xong
+        setTimeout(updateCartCount, 500);
+    });
 
     // Add to cart function - sử dụng đường dẫn API đúng
     if (typeof window.addToCart === 'undefined') {

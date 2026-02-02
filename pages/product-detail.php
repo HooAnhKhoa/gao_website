@@ -58,6 +58,17 @@ $reviews = $db->select(
     [$product_id, REVIEW_APPROVED]
 );
 
+// Check if current user has already reviewed this product
+$userReview = null;
+if (Functions::isLoggedIn()) {
+    $userReview = $db->selectOne(
+        "SELECT r.*, r.status as review_status 
+         FROM reviews r 
+         WHERE r.product_id = ? AND r.user_id = ?",
+        [$product_id, $_SESSION['user_id']]
+    );
+}
+
 // Calculate rating statistics
 $ratingStats = $db->selectOne(
     "SELECT 
@@ -510,9 +521,49 @@ $breadcrumbItems = [
                                     
                                     <!-- Add Review Button -->
                                     <div class="mt-4">
+                                        <?php if (!Functions::isLoggedIn()): ?>
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <a href="<?php echo SITE_URL; ?>/pages/login.php" class="alert-link">Đăng nhập</a> để viết đánh giá
+                                        </div>
+                                        <?php elseif ($userReview): ?>
+                                        <div class="alert alert-success">
+                                            <i class="fas fa-check-circle me-2"></i>
+                                            Bạn đã đánh giá sản phẩm này
+                                            <div class="mt-2">
+                                                <strong>Đánh giá của bạn:</strong>
+                                                <div class="d-flex align-items-center mt-1">
+                                                    <div class="stars me-2">
+                                                        <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                        <?php if ($i <= $userReview['rating']): ?>
+                                                            <i class="fas fa-star text-warning"></i>
+                                                        <?php else: ?>
+                                                            <i class="far fa-star text-warning"></i>
+                                                        <?php endif; ?>
+                                                        <?php endfor; ?>
+                                                    </div>
+                                                    <span class="badge bg-<?php echo $userReview['review_status'] === 'approved' ? 'success' : ($userReview['review_status'] === 'pending' ? 'warning' : 'danger'); ?>">
+                                                        <?php 
+                                                        switch($userReview['review_status']) {
+                                                            case 'approved': echo 'Đã duyệt'; break;
+                                                            case 'pending': echo 'Chờ duyệt'; break;
+                                                            case 'rejected': echo 'Từ chối'; break;
+                                                        }
+                                                        ?>
+                                                    </span>
+                                                </div>
+                                                <?php if ($userReview['comment']): ?>
+                                                <div class="mt-2">
+                                                    <em>"<?php echo htmlspecialchars($userReview['comment']); ?>"</em>
+                                                </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                        <?php else: ?>
                                         <button class="btn btn-success w-100" id="writeReviewBtn">
                                             <i class="fas fa-pen me-2"></i>Viết đánh giá
                                         </button>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </div>
@@ -575,16 +626,6 @@ $breadcrumbItems = [
                                             </div>
                                             <?php endif; endif; ?>
                                         </div>
-                                        
-                                        <?php if ($review['reply']): ?>
-                                        <div class="review-reply mt-3 p-3 bg-light rounded">
-                                            <div class="d-flex align-items-center mb-2">
-                                                <i class="fas fa-reply text-success me-2"></i>
-                                                <strong>Phản hồi từ cửa hàng:</strong>
-                                            </div>
-                                            <p class="mb-0"><?php echo nl2br(htmlspecialchars($review['reply'])); ?></p>
-                                        </div>
-                                        <?php endif; ?>
                                     </div>
                                     <?php endforeach; ?>
                                     
@@ -600,9 +641,20 @@ $breadcrumbItems = [
                                     <i class="fas fa-comments fa-4x text-muted mb-4"></i>
                                     <h4 class="mb-3">Chưa có đánh giá nào</h4>
                                     <p class="text-muted mb-4">Hãy là người đầu tiên đánh giá sản phẩm này!</p>
+                                    <?php if (!Functions::isLoggedIn()): ?>
+                                    <a href="<?php echo SITE_URL; ?>/pages/login.php" class="btn btn-success">
+                                        <i class="fas fa-sign-in-alt me-2"></i>Đăng nhập để đánh giá
+                                    </a>
+                                    <?php elseif ($userReview): ?>
+                                    <div class="alert alert-success d-inline-block">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        Bạn đã đánh giá sản phẩm này (<?php echo $userReview['review_status'] === 'approved' ? 'Đã duyệt' : 'Chờ duyệt'; ?>)
+                                    </div>
+                                    <?php else: ?>
                                     <button class="btn btn-success" id="writeFirstReviewBtn">
                                         <i class="fas fa-pen me-2"></i>Viết đánh giá đầu tiên
                                     </button>
+                                    <?php endif; ?>
                                 </div>
                                 <?php endif; ?>
                             </div>
@@ -671,11 +723,11 @@ $breadcrumbItems = [
 </section>
 
 <!-- Write Review Modal -->
-<div class="modal fade" id="writeReviewModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="writeReviewModal" tabindex="-1" aria-labelledby="writeReviewModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Viết đánh giá</h5>
+                <h5 class="modal-title" id="writeReviewModalLabel">Viết đánh giá</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -738,6 +790,21 @@ $breadcrumbItems = [
 
 <script>
 
+// Helper function to update rating stars
+function updateRatingStars(value) {
+    const ratingStars = document.querySelectorAll('.rating-star');
+    ratingStars.forEach(star => {
+        const starValue = star.dataset.value;
+        if (starValue <= value) {
+            star.classList.remove('far');
+            star.classList.add('fas');
+        } else {
+            star.classList.remove('fas');
+            star.classList.add('far');
+        }
+    });
+}
+
 // Product detail page JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     // Image thumbnail switching
@@ -796,18 +863,30 @@ document.addEventListener('DOMContentLoaded', function() {
     // Write review button
     const writeReviewBtn = document.getElementById('writeReviewBtn');
     const writeFirstReviewBtn = document.getElementById('writeFirstReviewBtn');
+    const reviewModal = document.getElementById('writeReviewModal');
+    
+    // Add modal event listeners for better accessibility
+    if (reviewModal) {
+        reviewModal.addEventListener('hidden.bs.modal', function () {
+            // Remove focus from any focused element inside modal when it closes
+            const focusedElement = this.querySelector(':focus');
+            if (focusedElement) {
+                focusedElement.blur();
+            }
+        });
+    }
     
     if (writeReviewBtn) {
         writeReviewBtn.addEventListener('click', function() {
-            const reviewModal = new bootstrap.Modal(document.getElementById('writeReviewModal'));
-            reviewModal.show();
+            const modal = new bootstrap.Modal(reviewModal);
+            modal.show();
         });
     }
     
     if (writeFirstReviewBtn) {
         writeFirstReviewBtn.addEventListener('click', function() {
-            const reviewModal = new bootstrap.Modal(document.getElementById('writeReviewModal'));
-            reviewModal.show();
+            const modal = new bootstrap.Modal(reviewModal);
+            modal.show();
         });
     }
     
@@ -838,22 +917,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    function updateRatingStars(value) {
-        ratingStars.forEach(star => {
-            const starValue = star.dataset.value;
-            if (starValue <= value) {
-                star.classList.remove('far');
-                star.classList.add('fas');
-            } else {
-                star.classList.remove('fas');
-                star.classList.add('far');
-            }
-        });
-    }
-    
     // Initialize rating
-    updateRatingStars(ratingInput.value);
-    ratingLabel.textContent = ratingLabels[ratingInput.value] || '';
+    if (ratingInput && ratingLabel) {
+        updateRatingStars(ratingInput.value);
+        ratingLabel.textContent = ratingLabels[ratingInput.value] || '';
+    }
     
     // Image upload preview
     const fileInput = document.getElementById('reviewImages');

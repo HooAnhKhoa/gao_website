@@ -116,10 +116,30 @@ try {
     ]);
 
 } catch (Exception $e) {
+    // Log lỗi để debug
+    error_log("Checkout Exception: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    echo json_encode([
+        'success' => false, 
+        'message' => $e->getMessage(),
+        'debug' => [
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ]
+    ]);
 } catch (Error $e) {
+    // Log lỗi để debug
+    error_log("Checkout Error: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Lỗi hệ thống: ' . $e->getMessage()]);
+    echo json_encode([
+        'success' => false, 
+        'message' => 'Lỗi hệ thống: ' . $e->getMessage(),
+        'debug' => [
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ]
+    ]);
 }
 ?>

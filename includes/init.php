@@ -8,6 +8,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Load constants
 require_once dirname(__DIR__) . '/config/constants.php';
+require_once dirname(__DIR__) . '/config/database.php';
 
 // Load database class - TRƯỚC functions.php
 require_once __DIR__ . '/db.php';

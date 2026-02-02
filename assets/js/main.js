@@ -18,13 +18,11 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     const API_PATH = getApiPath();
-    console.log('API Path:', API_PATH);
     
     // ====================
     // HÀM CHÍNH THÊM VÀO GIỎ HÀNG
     // ====================
     window.addToCart = function(productId, quantity = 1, button = null) {
-        console.log('addToCart called:', { productId, quantity, api: API_PATH + 'cart/add.php' });
         
         // Validate
         if (!productId || productId <= 0) {
@@ -56,7 +54,6 @@ document.addEventListener('DOMContentLoaded', function() {
             body: formData
         })
         .then(response => {
-            console.log('Response status:', response.status);
             
             // Kiểm tra content type
             const contentType = response.headers.get('content-type');
@@ -70,7 +67,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(data => {
-            console.log('API Response:', data);
             
             if (data.success) {
                 showNotification(data.message || 'Đã thêm vào giỏ hàng thành công!', 'success');
@@ -247,7 +243,4 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Cập nhật mỗi 30 giây
     setInterval(updateCartCount, 30000);
-    
-    // Debug info
-    console.log('Cart system initialized with API path:', API_PATH);
 });

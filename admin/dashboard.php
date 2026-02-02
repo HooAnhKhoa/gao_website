@@ -16,8 +16,11 @@ $functions = new Functions();
 
 // Get statistics
 $today = date('Y-m-d');
+$yesterday = date('Y-m-d', strtotime('-1 day'));
 $firstDayMonth = date('Y-m-01');
 $lastDayMonth = date('Y-m-t');
+$firstDayLastMonth = date('Y-m-01', strtotime('-1 month'));
+$lastDayLastMonth = date('Y-m-t', strtotime('-1 month'));
 
 $stats = $db->selectOne("
     SELECT 
@@ -26,13 +29,27 @@ $stats = $db->selectOne("
         (SELECT COUNT(*) FROM products WHERE stock_quantity <= 10) as low_stock,
         (SELECT COUNT(*) FROM orders) as total_orders,
         (SELECT COUNT(*) FROM orders WHERE DATE(created_at) = ?) as today_orders,
+        (SELECT COUNT(*) FROM orders WHERE DATE(created_at) = ?) as yesterday_orders,
         (SELECT COUNT(*) FROM orders WHERE order_status = 'pending') as pending_orders,
         (SELECT COUNT(*) FROM users WHERE role = 'user') as total_customers,
         (SELECT COUNT(*) FROM users WHERE DATE(created_at) = ?) as today_customers,
-        (SELECT SUM(final_amount) FROM orders WHERE order_status = 'delivered') as total_revenue,
+        (SELECT SUM(final_amount) FROM orders WHERE order_status IN ('delivered', 'processing', 'shipped')) as total_revenue,
         (SELECT SUM(final_amount) FROM orders WHERE DATE(created_at) = ?) as today_revenue,
-        (SELECT SUM(final_amount) FROM orders WHERE created_at BETWEEN ? AND ?) as month_revenue
-", [$today, $today, $today, $firstDayMonth, $lastDayMonth]);
+        (SELECT SUM(final_amount) FROM orders WHERE DATE(created_at) = ?) as yesterday_revenue,
+        (SELECT SUM(final_amount) FROM orders WHERE created_at BETWEEN ? AND ?) as month_revenue,
+        (SELECT SUM(final_amount) FROM orders WHERE created_at BETWEEN ? AND ?) as last_month_revenue,
+        (SELECT COUNT(*) FROM reviews WHERE status = 'pending') as pending_reviews
+", [$today, $yesterday, $today, $today, $yesterday, $firstDayMonth, $lastDayMonth, $firstDayLastMonth, $lastDayLastMonth]);
+
+// Calculate growth percentages
+$todayOrdersGrowth = $stats['yesterday_orders'] > 0 ? 
+    round((($stats['today_orders'] - $stats['yesterday_orders']) / $stats['yesterday_orders']) * 100, 1) : 0;
+
+$todayRevenueGrowth = $stats['yesterday_revenue'] > 0 ? 
+    round((($stats['today_revenue'] - $stats['yesterday_revenue']) / $stats['yesterday_revenue']) * 100, 1) : 0;
+
+$monthRevenueGrowth = $stats['last_month_revenue'] > 0 ? 
+    round((($stats['month_revenue'] - $stats['last_month_revenue']) / $stats['last_month_revenue']) * 100, 1) : 0;
 
 // Get recent orders
 $recent_orders = $db->select("
@@ -40,7 +57,7 @@ $recent_orders = $db->select("
     FROM orders o 
     LEFT JOIN users u ON o.user_id = u.id 
     ORDER BY o.created_at DESC 
-    LIMIT 5
+    LIMIT 8
 ");
 
 // Get low stock products
@@ -50,157 +67,278 @@ $low_stock = $db->select("
     LEFT JOIN categories c ON p.category_id = c.id 
     WHERE p.stock_quantity <= 10 AND p.status = 'active' 
     ORDER BY p.stock_quantity ASC 
-    LIMIT 5
+    LIMIT 6
 ");
 
-// Get recent reviews
-$recent_reviews = $db->select("
-    SELECT r.*, u.full_name, p.name as product_name 
-    FROM reviews r 
-    JOIN users u ON r.user_id = u.id 
-    JOIN products p ON r.product_id = p.id 
-    WHERE r.status = 'pending' 
-    ORDER BY r.created_at DESC 
+// Get top selling products this month
+$top_products = $db->select("
+    SELECT p.name, p.image, SUM(oi.quantity) as total_sold, SUM(oi.total_price) as total_revenue
+    FROM order_items oi
+    JOIN products p ON oi.product_id = p.id
+    JOIN orders o ON oi.order_id = o.id
+    WHERE o.created_at BETWEEN ? AND ? AND o.order_status IN ('delivered', 'processing', 'shipped')
+    GROUP BY p.id, p.name, p.image
+    ORDER BY total_sold DESC
     LIMIT 5
+", [$firstDayMonth, $lastDayMonth]);
+
+// Get recent activities
+$recent_activities = $db->select("
+    SELECT 'order' as type, order_code as title, customer_name as description, created_at, 'success' as status
+    FROM orders 
+    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+    UNION ALL
+    SELECT 'user' as type, CONCAT('Khách hàng mới: ', full_name) as title, email as description, created_at, 'info' as status
+    FROM users 
+    WHERE role = 'user' AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+    UNION ALL
+    SELECT 'review' as type, CONCAT('Đánh giá mới') as title, CONCAT('Sản phẩm ID: ', product_id) as description, created_at, 'warning' as status
+    FROM reviews 
+    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+    ORDER BY created_at DESC
+    LIMIT 10
 ");
 
-// Get monthly revenue data for chart
+// Get monthly revenue data for chart (last 12 months)
 $monthly_revenue = $db->select("
     SELECT 
         DATE_FORMAT(created_at, '%Y-%m') as month,
         SUM(final_amount) as revenue,
         COUNT(*) as orders
     FROM orders 
-    WHERE order_status = 'delivered' 
-    AND created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+    WHERE order_status IN ('delivered', 'processing', 'shipped')
+    AND created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
     GROUP BY DATE_FORMAT(created_at, '%Y-%m')
     ORDER BY month ASC
 ");
+
+// Get order status distribution
+$order_status_stats = $db->select("
+    SELECT 
+        order_status,
+        COUNT(*) as count,
+        SUM(final_amount) as total_amount
+    FROM orders 
+    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    GROUP BY order_status
+    ORDER BY count DESC
+");
+?>
 ?>
 
 <div class="container-fluid px-4">
-    <div class="page-header mb-4">
-        <h1 class="h2 fw-bold text-success mb-3">
-            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-        </h1>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="<?php echo SITE_URL; ?>/admin/dashboard.php">Dashboard</a></li>
-                <li class="breadcrumb-item active">Tổng quan</li>
-            </ol>
-        </nav>
+    <!-- Page Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h1 class="h3 mb-2 text-gray-800 fw-bold">
+                <i class="fas fa-tachometer-alt text-success me-2"></i>Dashboard
+            </h1>
+            <p class="mb-0 text-muted">Chào mừng trở lại! Đây là tổng quan về cửa hàng của bạn.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-success btn-sm" onclick="refreshDashboard()">
+                <i class="fas fa-sync-alt me-1"></i>Làm mới
+            </button>
+            <div class="dropdown">
+                <button class="btn btn-success btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-download me-1"></i>Xuất báo cáo
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-file-excel me-2"></i>Xuất Excel</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf me-2"></i>Xuất PDF</a></li>
+                </ul>
+            </div>
+        </div>
     </div>
 
-    <div class="row">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
+    <!-- Stats Cards Row -->
+    <div class="row g-3 mb-4">
+        <!-- Revenue Card -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs fw-bold text-primary text-uppercase mb-1">
-                                Doanh thu (Tháng)
-                            </div>
-                            <div class="h5 mb-0 fw-bold text-gray-800">
-                                <?php echo $functions->formatPrice($stats['month_revenue'] ?? 0); ?>
-                            </div>
-                            <div class="mt-2 mb-0 text-muted text-xs">
-                                <span class="text-success me-2">
-                                    <i class="fas fa-arrow-up me-1"></i>
-                                    <?php 
-                                    $todayRevenue = $stats['today_revenue'] ?? 0;
-                                    echo $functions->formatPrice($todayRevenue); 
-                                    ?> hôm nay
-                                </span>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-gradient rounded-3 p-3">
+                                <i class="fas fa-dollar-sign fa-lg text-white"></i>
                             </div>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="text-muted small text-uppercase fw-bold">Doanh thu tháng</div>
+                            <div class="h4 mb-1 fw-bold text-dark">
+                                <?php echo Functions::formatPrice($stats['month_revenue'] ?? 0); ?>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <?php if ($monthRevenueGrowth >= 0): ?>
+                                <span class="badge bg-success bg-opacity-10 text-success me-2">
+                                    <i class="fas fa-arrow-up me-1"></i><?php echo abs($monthRevenueGrowth); ?>%
+                                </span>
+                                <?php else: ?>
+                                <span class="badge bg-danger bg-opacity-10 text-danger me-2">
+                                    <i class="fas fa-arrow-down me-1"></i><?php echo abs($monthRevenueGrowth); ?>%
+                                </span>
+                                <?php endif; ?>
+                                <small class="text-muted">so với tháng trước</small>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
+        <!-- Orders Card -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs fw-bold text-success text-uppercase mb-1">
-                                Tổng đơn hàng
-                            </div>
-                            <div class="h5 mb-0 fw-bold text-gray-800">
-                                <?php echo $stats['total_orders'] ?? 0; ?>
-                            </div>
-                            <div class="mt-2 mb-0 text-muted text-xs">
-                                <span class="<?php echo ($stats['pending_orders'] ?? 0) > 0 ? 'text-danger' : 'text-success'; ?> me-2">
-                                    <i class="fas fa-clock me-1"></i>
-                                    <?php echo $stats['pending_orders'] ?? 0; ?> đang chờ
-                                </span>
-                                <span class="text-info">
-                                    <i class="fas fa-sun me-1"></i>
-                                    <?php echo $stats['today_orders'] ?? 0; ?> hôm nay
-                                </span>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-gradient rounded-3 p-3">
+                                <i class="fas fa-shopping-cart fa-lg text-white"></i>
                             </div>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-shopping-cart fa-2x text-gray-300"></i>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="text-muted small text-uppercase fw-bold">Đơn hàng hôm nay</div>
+                            <div class="h4 mb-1 fw-bold text-dark">
+                                <?php echo $stats['today_orders'] ?? 0; ?>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <?php if ($todayOrdersGrowth >= 0): ?>
+                                <span class="badge bg-success bg-opacity-10 text-success me-2">
+                                    <i class="fas fa-arrow-up me-1"></i><?php echo abs($todayOrdersGrowth); ?>%
+                                </span>
+                                <?php else: ?>
+                                <span class="badge bg-danger bg-opacity-10 text-danger me-2">
+                                    <i class="fas fa-arrow-down me-1"></i><?php echo abs($todayOrdersGrowth); ?>%
+                                </span>
+                                <?php endif; ?>
+                                <small class="text-muted">so với hôm qua</small>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
+        <!-- Customers Card -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs fw-bold text-info text-uppercase mb-1">
-                                Khách hàng
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-gradient rounded-3 p-3">
+                                <i class="fas fa-users fa-lg text-white"></i>
                             </div>
-                            <div class="h5 mb-0 fw-bold text-gray-800">
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="text-muted small text-uppercase fw-bold">Tổng khách hàng</div>
+                            <div class="h4 mb-1 fw-bold text-dark">
                                 <?php echo $stats['total_customers'] ?? 0; ?>
                             </div>
-                            <div class="mt-2 mb-0 text-muted text-xs">
-                                <span class="text-success">
-                                    <i class="fas fa-user-plus me-1"></i>
-                                    <?php echo $stats['today_customers'] ?? 0; ?> mới hôm nay
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-info bg-opacity-10 text-info me-2">
+                                    <i class="fas fa-user-plus me-1"></i><?php echo $stats['today_customers'] ?? 0; ?>
                                 </span>
+                                <small class="text-muted">mới hôm nay</small>
                             </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-users fa-2x text-gray-300"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
+        <!-- Products Card -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs fw-bold text-warning text-uppercase mb-1">
-                                Sản phẩm
-                            </div>
-                            <div class="h5 mb-0 fw-bold text-gray-800">
-                                <?php echo $stats['total_products'] ?? 0; ?>
-                            </div>
-                            <div class="mt-2 mb-0 text-muted text-xs">
-                                <span class="text-success me-2">
-                                    <i class="fas fa-check-circle me-1"></i>
-                                    <?php echo $stats['active_products'] ?? 0; ?> đang bán
-                                </span>
-                                <span class="text-danger">
-                                    <i class="fas fa-exclamation-triangle me-1"></i>
-                                    <?php echo $stats['low_stock'] ?? 0; ?> sắp hết
-                                </span>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-gradient rounded-3 p-3">
+                                <i class="fas fa-boxes fa-lg text-white"></i>
                             </div>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-boxes fa-2x text-gray-300"></i>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="text-muted small text-uppercase fw-bold">Sản phẩm</div>
+                            <div class="h4 mb-1 fw-bold text-dark">
+                                <?php echo $stats['active_products'] ?? 0; ?>/<?php echo $stats['total_products'] ?? 0; ?>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <?php if (($stats['low_stock'] ?? 0) > 0): ?>
+                                <span class="badge bg-danger bg-opacity-10 text-danger me-2">
+                                    <i class="fas fa-exclamation-triangle me-1"></i><?php echo $stats['low_stock']; ?>
+                                </span>
+                                <small class="text-muted">sắp hết hàng</small>
+                                <?php else: ?>
+                                <span class="badge bg-success bg-opacity-10 text-success me-2">
+                                    <i class="fas fa-check me-1"></i>Đủ hàng
+                                </span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="card-title fw-bold mb-3">
+                        <i class="fas fa-bolt text-warning me-2"></i>Thao tác nhanh
+                    </h6>
+                    <div class="row g-2">
+                        <div class="col-md-2 col-6">
+                            <a href="<?php echo SITE_URL; ?>/admin/product-add.php" class="btn btn-outline-success w-100">
+                                <i class="fas fa-plus-circle mb-1"></i><br>
+                                <small>Thêm sản phẩm</small>
+                            </a>
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <a href="<?php echo SITE_URL; ?>/admin/orders.php?status=pending" class="btn btn-outline-warning w-100">
+                                <i class="fas fa-clock mb-1"></i><br>
+                                <small>Đơn chờ duyệt</small>
+                                <?php if (($stats['pending_orders'] ?? 0) > 0): ?>
+                                <span class="badge bg-danger position-absolute top-0 start-100 translate-middle rounded-pill">
+                                    <?php echo $stats['pending_orders']; ?>
+                                </span>
+                                <?php endif; ?>
+                            </a>
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <a href="<?php echo SITE_URL; ?>/admin/products.php?filter=low_stock" class="btn btn-outline-danger w-100">
+                                <i class="fas fa-exclamation-triangle mb-1"></i><br>
+                                <small>Hàng sắp hết</small>
+                                <?php if (($stats['low_stock'] ?? 0) > 0): ?>
+                                <span class="badge bg-danger position-absolute top-0 start-100 translate-middle rounded-pill">
+                                    <?php echo $stats['low_stock']; ?>
+                                </span>
+                                <?php endif; ?>
+                            </a>
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <a href="<?php echo SITE_URL; ?>/admin/reviews.php?status=pending" class="btn btn-outline-info w-100">
+                                <i class="fas fa-star mb-1"></i><br>
+                                <small>Đánh giá mới</small>
+                                <?php if (($stats['pending_reviews'] ?? 0) > 0): ?>
+                                <span class="badge bg-danger position-absolute top-0 start-100 translate-middle rounded-pill">
+                                    <?php echo $stats['pending_reviews']; ?>
+                                </span>
+                                <?php endif; ?>
+                            </a>
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <a href="<?php echo SITE_URL; ?>/admin/customers.php" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-users mb-1"></i><br>
+                                <small>Khách hàng</small>
+                            </a>
+                        </div>
+                        <div class="col-md-2 col-6">
+                            <a href="<?php echo SITE_URL; ?>/admin/categories.php" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-tags mb-1"></i><br>
+                                <small>Danh mục</small>
+                            </a>
                         </div>
                     </div>
                 </div>

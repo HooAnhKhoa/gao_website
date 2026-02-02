@@ -268,7 +268,7 @@ $finalTotal = $cartTotal + $shippingFee;
                     </div>
                 </div>
                 
-                <!-- Shipping Info -->
+                Shipping Info
                 <div class="shipping-info card border-0 shadow-sm">
                     <div class="card-body">
                         <h5 class="card-title mb-3">

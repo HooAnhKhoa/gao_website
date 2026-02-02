@@ -1,5 +1,17 @@
 <?php
+// Xác định đường dẫn assets dựa trên vị trí file hiện tại
+$current_dir = dirname($_SERVER['SCRIPT_NAME']);
+$is_in_pages = strpos($current_dir, '/pages') !== false;
+$is_in_admin = strpos($current_dir, '/admin') !== false;
 
+// Xác định base path cho assets
+if ($is_in_pages || $is_in_admin) {
+    $assets_base = '../assets/';
+    $site_base = '../';
+} else {
+    $assets_base = 'assets/';
+    $site_base = './';
+}
 ?>
 
 <!DOCTYPE html>
@@ -16,10 +28,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="<?php echo $assets_base; ?>css/style.css">
     
     <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="assets/images/favicon.ico">
+    <link rel="icon" type="image/x-icon" href="<?php echo $assets_base; ?>images/favicon.ico">
     
     <!-- Meta tags -->
     <meta name="description" content="<?php echo isset($pageDescription) ? $pageDescription : 'Cửa hàng gạo chất lượng, uy tín, giá tốt nhất thị trường. Gạo ST25, gạo nếp, gạo lứt, gạo đặc sản các vùng miền.'; ?>">
@@ -29,7 +41,7 @@
     <!-- Open Graph -->
     <meta property="og:title" content="<?php echo isset($pageTitle) ? $pageTitle : SITE_NAME; ?>">
     <meta property="og:description" content="<?php echo isset($pageDescription) ? $pageDescription : 'Cửa hàng gạo chất lượng, uy tín, giá tốt nhất thị trường'; ?>">
-    <meta property="og:image" content="<?php echo SITE_URL; ?>/assets/images/logo.png">
+    <meta property="og:image" content="<?php echo $assets_base; ?>images/logo.png">
     <meta property="og:url" content="<?php echo SITE_URL . $_SERVER['REQUEST_URI']; ?>">
     <meta property="og:type" content="website">
     
@@ -37,7 +49,7 @@
     <link rel="canonical" href="<?php echo SITE_URL . $_SERVER['REQUEST_URI']; ?>">
     
     <!-- Preload important resources -->
-    <link rel="preload" href="assets/css/style.css" as="style">
+    <link rel="preload" href="<?php echo $assets_base; ?>css/style.css" as="style">
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" as="style">
     
     <?php if (isset($additionalCss)): ?>
@@ -67,21 +79,21 @@
                             <?php $currentUser = Functions::getCurrentUser(); ?>
                             <span class="me-3">
                                 <i class="fas fa-user me-1"></i>
-                                Xin chào, <a href="pages/profile.php" class="text-white text-decoration-none"><?php echo htmlspecialchars($currentUser['full_name'] ?? $currentUser['username']); ?></a>
+                                Xin chào, <a href="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>profile.php" class="text-white text-decoration-none"><?php echo htmlspecialchars($currentUser['full_name'] ?? $currentUser['username']); ?></a>
                             </span>
                             <?php if (Functions::isAdmin()): ?>
-                                <a href="admin/dashboard.php" class="text-white text-decoration-none me-3">
+                                <a href="<?php echo ($is_in_admin) ? './' : (($is_in_pages) ? '../admin/' : 'admin/'); ?>dashboard.php" class="text-white text-decoration-none me-3">
                                     <i class="fas fa-cog me-1"></i>Quản trị
                                 </a>
                             <?php endif; ?>
-                            <a href="api/auth/logout.php" class="text-white text-decoration-none">
+                            <a href="<?php echo ($is_in_pages || $is_in_admin) ? '../api/' : 'api/'; ?>auth/logout.php" class="text-white text-decoration-none">
                                 <i class="fas fa-sign-out-alt me-1"></i>Đăng xuất
                             </a>
                         <?php else: ?>
-                            <a href="http://www.localhost/gao_website/pages/login.php" class="text-white text-decoration-none me-3">
+                            <a href="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>login.php" class="text-white text-decoration-none me-3">
                                 <i class="fas fa-sign-in-alt me-1"></i>Đăng nhập
                             </a>
-                            <a href="http://www.localhost/gao_website/pages/register.php" class="text-white text-decoration-none">
+                            <a href="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>register.php" class="text-white text-decoration-none">
                                 <i class="fas fa-user-plus me-1"></i>Đăng ký
                             </a>
                         <?php endif; ?>
@@ -98,7 +110,7 @@
                 <!-- Logo -->
                 <div class="col-lg-3 col-md-4 col-6">
                     <div class="logo">
-                        <a href="index.php" class="text-decoration-none">
+                        <a href="<?php echo $site_base; ?>index.php" class="text-decoration-none">
                             <h1 class="h3 mb-0 text-success">
                                 <i class="fas fa-seedling text-warning"></i>
                                 Gạo Ngon
@@ -110,7 +122,7 @@
 
                 <!-- Search -->
                 <div class="col-lg-5 col-md-8 col-6 order-md-2 order-lg-1">
-                    <form class="search-form" action="pages/products.php" method="get">
+                    <form class="search-form" action="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>products.php" method="get">
                         <div class="input-group">
                             <input type="text" class="form-control" name="search" placeholder="Tìm kiếm sản phẩm..." 
                                    value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
@@ -127,11 +139,14 @@
                         <!-- Wishlist  -->
                         
                         <!-- Cart -->
-                        <a href="pages/cart.php" class="btn btn-outline-primary position-relative me-3">
+                        <a href="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>cart.php" class="btn btn-outline-primary position-relative me-3">
                             <i class="fas fa-shopping-cart"></i>
+                            <?php $cartCount = Functions::getCartCount(); ?>
+                            <?php if ($cartCount > 0): ?>
                             <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger cart-count">
-                                <?php echo Functions::getCartCount(); ?>
+                                <?php echo $cartCount; ?>
                             </span>
+                            <?php endif; ?>
                         </a>
                         
                         <!-- Mobile Menu Toggle -->
@@ -154,7 +169,7 @@
             <div class="collapse navbar-collapse" id="mainNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link active" href="../index.php">
+                        <a class="nav-link active" href="<?php echo $site_base; ?>index.php">
                             <i class="fas fa-home me-1"></i>Trang chủ
                         </a>
                     </li>
@@ -184,7 +199,7 @@
                                 foreach ($subCategories as $sub):
                             ?>
                                 <li>
-                                    <a class="dropdown-item" href="pages/products.php?category=<?php echo $sub['id']; ?>">
+                                    <a class="dropdown-item" href="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>products.php?category=<?php echo $sub['id']; ?>">
                                         <?php echo htmlspecialchars($sub['name']); ?>
                                     </a>
                                 </li>
@@ -194,7 +209,7 @@
                             ?>
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <a class="dropdown-item text-success" href="pages/products.php?category=<?php echo $category['id']; ?>">
+                                <a class="dropdown-item text-success" href="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>products.php?category=<?php echo $category['id']; ?>">
                                     <i class="fas fa-arrow-right me-1"></i>Xem tất cả
                                 </a>
                             </li>
@@ -203,7 +218,7 @@
                     <?php endforeach; ?>
                     
                     <li class="nav-item">
-                        <a class="nav-link" href="pages/products.php">
+                        <a class="nav-link" href="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>products.php">
                             <i class="fas fa-store me-1"></i>Tất cả sản phẩm
                         </a>
                     </li>
@@ -228,58 +243,61 @@
         <div class="offcanvas-body">
             <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a class="nav-link active" href="index.php">
+                    <a class="nav-link active" href="<?php echo $site_base; ?>index.php">
                         <i class="fas fa-home me-2"></i>Trang chủ
                     </a>
                 </li>
                 
                 <?php foreach ($categories as $category): ?>
                 <li class="nav-item">
-                    <a class="nav-link" href="pages/products.php?category=<?php echo $category['id']; ?>">
+                    <a class="nav-link" href="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>products.php?category=<?php echo $category['id']; ?>">
                         <i class="fas fa-chevron-right me-2"></i><?php echo htmlspecialchars($category['name']); ?>
                     </a>
                 </li>
                 <?php endforeach; ?>
                 
                 <li class="nav-item">
-                    <a class="nav-link" href="pages/products.php">
+                    <a class="nav-link" href="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>products.php">
                         <i class="fas fa-store me-2"></i>Tất cả sản phẩm
                     </a>
                 </li>
                 
                 <li class="nav-item">
-                    <a class="nav-link" href="pages/cart.php">
+                    <a class="nav-link" href="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>cart.php">
                         <i class="fas fa-shopping-cart me-2"></i>Giỏ hàng
-                        <span class="badge bg-danger float-end cart-count"><?php echo Functions::getCartCount(); ?></span>
+                        <?php $mobileCartCount = Functions::getCartCount(); ?>
+                        <?php if ($mobileCartCount > 0): ?>
+                        <span class="badge bg-danger float-end cart-count"><?php echo $mobileCartCount; ?></span>
+                        <?php endif; ?>
                     </a>
                 </li>
                 
                 <?php if (Functions::isLoggedIn()): ?>
                     <li class="nav-item">
-                        <a class="nav-link" href="pages/profile.php">
+                        <a class="nav-link" href="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>profile.php">
                             <i class="fas fa-user me-2"></i>Tài khoản
                         </a>
                     </li>
                     <?php if (Functions::isAdmin()): ?>
                     <li class="nav-item">
-                        <a class="nav-link text-success" href="admin/dashboard.php">
+                        <a class="nav-link text-success" href="<?php echo ($is_in_admin) ? './' : (($is_in_pages) ? '../admin/' : 'admin/'); ?>dashboard.php">
                             <i class="fas fa-cog me-2"></i>Quản trị
                         </a>
                     </li>
                     <?php endif; ?>
                     <li class="nav-item">
-                        <a class="nav-link text-danger" href="api/auth/logout.php">
+                        <a class="nav-link text-danger" href="<?php echo ($is_in_pages || $is_in_admin) ? '../api/' : 'api/'; ?>auth/logout.php">
                             <i class="fas fa-sign-out-alt me-2"></i>Đăng xuất
                         </a>
                     </li>
                 <?php else: ?>
                     <li class="nav-item">
-                        <a class="nav-link" href="pages/login.php">
+                        <a class="nav-link" href="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>login.php">
                             <i class="fas fa-sign-in-alt me-2"></i>Đăng nhập
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="pages/register.php">
+                        <a class="nav-link" href="<?php echo ($is_in_pages || $is_in_admin) ? './' : 'pages/'; ?>register.php">
                             <i class="fas fa-user-plus me-2"></i>Đăng ký
                         </a>
                     </li>
@@ -294,7 +312,7 @@
         <div class="container">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="index.php"><i class="fas fa-home"></i></a></li>
+                    <li class="breadcrumb-item"><a href="<?php echo $site_base; ?>index.php"><i class="fas fa-home"></i></a></li>
                     <?php if (isset($breadcrumbItems)): ?>
                         <?php foreach ($breadcrumbItems as $item): ?>
                             <?php if (isset($item['url'])): ?>

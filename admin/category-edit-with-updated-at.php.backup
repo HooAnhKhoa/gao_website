@@ -1,0 +1,14 @@
+<?php
+// Backup code với updated_at - chỉ sử dụng sau khi chạy SQL script
+
+// Trong phần update category:
+$categoryData = [
+    'name' => $name,
+    'slug' => $slug,
+    'description' => $description,
+    'parent_id' => $parent_id,
+    'image' => $imageName,
+    'status' => $status,
+    'updated_at' => date('Y-m-d H:i:s') // Có thể thêm lại sau khi chạy SQL
+];
+?>

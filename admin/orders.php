@@ -46,16 +46,43 @@ $orders = $db->select("
 </div>
 
 <div class="card shadow mb-4">
-    <div class="card-header py-3">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
         <h6 class="m-0 font-weight-bold text-success">Bộ lọc & Tìm kiếm</h6>
+        <div class="btn-group">
+            <button class="btn btn-sm btn-success" onclick="bulkApprove()" title="Duyệt tất cả đơn chờ xử lý">
+                <i class="fas fa-check-double me-1"></i>Duyệt hàng loạt
+            </button>
+            <button class="btn btn-sm btn-info" onclick="refreshOrders()" title="Làm mới danh sách">
+                <i class="fas fa-sync-alt me-1"></i>Làm mới
+            </button>
+        </div>
     </div>
     <div class="card-body">
         <div class="btn-group" role="group">
-            <a href="orders.php" class="btn btn-outline-secondary <?php echo $status_filter == '' ? 'active' : ''; ?>">Tất cả</a>
-            <a href="orders.php?status=pending" class="btn btn-outline-warning <?php echo $status_filter == 'pending' ? 'active' : ''; ?>">Chờ xử lý</a>
-            <a href="orders.php?status=shipping" class="btn btn-outline-primary <?php echo $status_filter == 'shipping' ? 'active' : ''; ?>">Đang giao</a>
-            <a href="orders.php?status=delivered" class="btn btn-outline-success <?php echo $status_filter == 'delivered' ? 'active' : ''; ?>">Hoàn thành</a>
-            <a href="orders.php?status=cancelled" class="btn btn-outline-danger <?php echo $status_filter == 'cancelled' ? 'active' : ''; ?>">Đã hủy</a>
+            <a href="orders.php" class="btn btn-outline-secondary <?php echo $status_filter == '' ? 'active' : ''; ?>">
+                Tất cả 
+                <span class="badge bg-secondary ms-1"><?php echo $db->selectOne("SELECT COUNT(*) as total FROM orders")['total']; ?></span>
+            </a>
+            <a href="orders.php?status=pending" class="btn btn-outline-warning <?php echo $status_filter == 'pending' ? 'active' : ''; ?>">
+                Chờ xử lý
+                <span class="badge bg-warning ms-1"><?php echo $db->selectOne("SELECT COUNT(*) as total FROM orders WHERE order_status = 'pending'")['total']; ?></span>
+            </a>
+            <a href="orders.php?status=processing" class="btn btn-outline-info <?php echo $status_filter == 'processing' ? 'active' : ''; ?>">
+                Đang xử lý
+                <span class="badge bg-info ms-1"><?php echo $db->selectOne("SELECT COUNT(*) as total FROM orders WHERE order_status = 'processing'")['total']; ?></span>
+            </a>
+            <a href="orders.php?status=shipped" class="btn btn-outline-primary <?php echo $status_filter == 'shipped' ? 'active' : ''; ?>">
+                Đang giao
+                <span class="badge bg-primary ms-1"><?php echo $db->selectOne("SELECT COUNT(*) as total FROM orders WHERE order_status = 'shipped'")['total']; ?></span>
+            </a>
+            <a href="orders.php?status=delivered" class="btn btn-outline-success <?php echo $status_filter == 'delivered' ? 'active' : ''; ?>">
+                Hoàn thành
+                <span class="badge bg-success ms-1"><?php echo $db->selectOne("SELECT COUNT(*) as total FROM orders WHERE order_status = 'delivered'")['total']; ?></span>
+            </a>
+            <a href="orders.php?status=cancelled" class="btn btn-outline-danger <?php echo $status_filter == 'cancelled' ? 'active' : ''; ?>">
+                Đã hủy
+                <span class="badge bg-danger ms-1"><?php echo $db->selectOne("SELECT COUNT(*) as total FROM orders WHERE order_status = 'cancelled'")['total']; ?></span>
+            </a>
         </div>
     </div>
 </div>
@@ -66,6 +93,9 @@ $orders = $db->select("
             <table class="table table-bordered table-hover" width="100%" cellspacing="0">
                 <thead class="table-success">
                     <tr>
+                        <th width="30">
+                            <input type="checkbox" id="selectAll" title="Chọn tất cả">
+                        </th>
                         <th>Mã ĐH</th>
                         <th>Khách hàng</th>
                         <th>Ngày đặt</th>
@@ -77,10 +107,14 @@ $orders = $db->select("
                 </thead>
                 <tbody>
                     <?php if (empty($orders)): ?>
-                        <tr><td colspan="7" class="text-center">Không tìm thấy đơn hàng nào.</td></tr>
+                        <tr><td colspan="8" class="text-center">Không tìm thấy đơn hàng nào.</td></tr>
                     <?php else: ?>
                         <?php foreach ($orders as $order): ?>
-                        <tr>
+                        <tr data-order-id="<?php echo $order['id']; ?>" data-status="<?php echo $order['order_status']; ?>">
+                            <td>
+                                <input type="checkbox" class="order-checkbox" value="<?php echo $order['id']; ?>" 
+                                       <?php echo $order['order_status'] !== 'pending' ? 'disabled' : ''; ?>>
+                            </td>
                             <td class="fw-bold text-primary">
                                 <a href="order-detail.php?id=<?php echo $order['id']; ?>" class="text-decoration-none">
                                     #<?php echo $order['order_code']; ?>
@@ -90,7 +124,10 @@ $orders = $db->select("
                                 <div class="fw-bold"><?php echo htmlspecialchars($order['customer_name']); ?></div>
                                 <small class="text-muted"><i class="fas fa-phone-alt me-1"></i><?php echo $order['customer_phone']; ?></small>
                             </td>
-                            <td><?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?></td>
+                            <td>
+                                <?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?>
+                                <br><small class="text-muted"><?php echo Functions::timeAgo($order['created_at']); ?></small>
+                            </td>
                             <td class="fw-bold text-danger">
                                 <?php echo $functions->formatPrice($order['final_amount']); ?>
                             </td>
@@ -109,7 +146,7 @@ $orders = $db->select("
                             <td>
                                 <?php 
                                 $status = Functions::getStatusLabel($order['order_status'], 'order');
-                                echo '<span class="badge ' . $status['class'] . '">' . $status['label'] . '</span>';
+                                echo '<span class="badge ' . $status['class'] . ' status-badge" data-order-id="' . $order['id'] . '">' . $status['label'] . '</span>';
                                 ?>
                             </td>
                             <td>
@@ -119,10 +156,10 @@ $orders = $db->select("
                                     </a>
                                     
                                     <?php if ($order['order_status'] == 'pending'): ?>
-                                    <button class="btn btn-sm btn-success update-status" 
+                                    <button class="btn btn-sm btn-success update-status quick-approve" 
                                             data-id="<?php echo $order['id']; ?>" 
                                             data-status="processing"
-                                            title="Xác nhận & Giao hàng">
+                                            title="Duyệt đơn hàng">
                                         <i class="fas fa-check"></i>
                                     </button>
                                     <button class="btn btn-sm btn-danger update-status" 
@@ -133,7 +170,16 @@ $orders = $db->select("
                                     </button>
                                     <?php endif; ?>
 
-                                    <?php if ($order['order_status'] == 'processing' || $order['order_status'] == 'shipped'): ?>
+                                    <?php if ($order['order_status'] == 'processing'): ?>
+                                    <button class="btn btn-sm btn-primary update-status" 
+                                            data-id="<?php echo $order['id']; ?>" 
+                                            data-status="shipped"
+                                            title="Chuyển sang giao hàng">
+                                        <i class="fas fa-shipping-fast"></i>
+                                    </button>
+                                    <?php endif; ?>
+
+                                    <?php if ($order['order_status'] == 'shipped'): ?>
                                     <button class="btn btn-sm btn-success update-status" 
                                             data-id="<?php echo $order['id']; ?>" 
                                             data-status="delivered"
@@ -174,7 +220,19 @@ $orders = $db->select("
 // Xử lý cập nhật trạng thái đơn hàng bằng Ajax
 document.addEventListener('DOMContentLoaded', function() {
     const buttons = document.querySelectorAll('.update-status');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const orderCheckboxes = document.querySelectorAll('.order-checkbox');
     
+    // Xử lý chọn tất cả
+    selectAllCheckbox?.addEventListener('change', function() {
+        orderCheckboxes.forEach(checkbox => {
+            if (!checkbox.disabled) {
+                checkbox.checked = this.checked;
+            }
+        });
+    });
+    
+    // Xử lý cập nhật trạng thái đơn lẻ
     buttons.forEach(btn => {
         btn.addEventListener('click', function() {
             const orderId = this.dataset.id;
@@ -182,39 +240,157 @@ document.addEventListener('DOMContentLoaded', function() {
             let confirmMsg = 'Bạn có chắc muốn cập nhật trạng thái đơn hàng này?';
             
             if (status === 'cancelled') confirmMsg = 'Bạn có chắc chắn muốn HỦY đơn hàng này?';
+            if (status === 'processing') confirmMsg = 'Duyệt đơn hàng này?';
+            if (status === 'shipped') confirmMsg = 'Chuyển đơn hàng sang trạng thái "Đang giao hàng"?';
+            if (status === 'delivered') confirmMsg = 'Xác nhận đã giao hàng thành công?';
             
             if (confirm(confirmMsg)) {
-                // Gọi API cập nhật (cần tạo file api/admin/orders/update-status.php)
-                // Hoặc gửi request POST về chính trang này nếu xử lý logic ở đây (tuy nhiên dùng API clean hơn)
-                
-                // Demo fetch API:
-                fetch('<?php echo SITE_URL; ?>/api/admin/orders/update-status.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        order_id: orderId,
-                        status: status
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message);
-                        location.reload();
-                    } else {
-                        alert('Lỗi: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Đã có lỗi xảy ra khi kết nối server.');
-                });
+                updateOrderStatus(orderId, status, this);
             }
         });
     });
 });
+
+// Hàm cập nhật trạng thái đơn hàng
+function updateOrderStatus(orderId, status, buttonElement) {
+    // Disable button để tránh click nhiều lần
+    if (buttonElement) {
+        buttonElement.disabled = true;
+        buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    }
+    
+    fetch('<?php echo SITE_URL; ?>/api/admin/orders/update-status.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            order_id: orderId,
+            status: status
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Hiển thị thông báo thành công
+            showNotification(data.message, 'success');
+            
+            // Cập nhật giao diện
+            updateOrderRow(orderId, status);
+            
+            // Reload trang sau 1 giây để cập nhật số liệu
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showNotification('Lỗi: ' + data.message, 'error');
+            // Khôi phục button
+            if (buttonElement) {
+                buttonElement.disabled = false;
+                restoreButtonIcon(buttonElement, status);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Đã có lỗi xảy ra khi kết nối server.', 'error');
+        // Khôi phục button
+        if (buttonElement) {
+            buttonElement.disabled = false;
+            restoreButtonIcon(buttonElement, status);
+        }
+    });
+}
+
+// Duyệt hàng loạt
+function bulkApprove() {
+    const checkedBoxes = document.querySelectorAll('.order-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        alert('Vui lòng chọn ít nhất một đơn hàng để duyệt.');
+        return;
+    }
+    
+    if (confirm(`Duyệt ${checkedBoxes.length} đơn hàng đã chọn?`)) {
+        let completed = 0;
+        const total = checkedBoxes.length;
+        
+        checkedBoxes.forEach(checkbox => {
+            const orderId = checkbox.value;
+            updateOrderStatus(orderId, 'processing', null);
+            completed++;
+        });
+        
+        showNotification(`Đang xử lý ${total} đơn hàng...`, 'info');
+    }
+}
+
+// Làm mới danh sách
+function refreshOrders() {
+    location.reload();
+}
+
+// Hiển thị thông báo
+function showNotification(message, type) {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const notification = document.createElement('div');
+    notification.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Tự động ẩn sau 3 giây
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Cập nhật giao diện hàng đơn hàng
+function updateOrderRow(orderId, newStatus) {
+    const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
+    if (row) {
+        const statusBadge = row.querySelector('.status-badge');
+        const statusLabels = {
+            'pending': { label: 'Chờ xử lý', class: 'badge bg-warning' },
+            'processing': { label: 'Đang xử lý', class: 'badge bg-info' },
+            'shipped': { label: 'Đang giao hàng', class: 'badge bg-primary' },
+            'delivered': { label: 'Đã giao hàng', class: 'badge bg-success' },
+            'cancelled': { label: 'Đã hủy', class: 'badge bg-danger' }
+        };
+        
+        if (statusBadge && statusLabels[newStatus]) {
+            statusBadge.className = statusLabels[newStatus].class + ' status-badge';
+            statusBadge.textContent = statusLabels[newStatus].label;
+        }
+        
+        // Cập nhật data-status
+        row.setAttribute('data-status', newStatus);
+        
+        // Disable checkbox nếu không còn pending
+        const checkbox = row.querySelector('.order-checkbox');
+        if (checkbox && newStatus !== 'pending') {
+            checkbox.disabled = true;
+            checkbox.checked = false;
+        }
+    }
+}
+
+// Khôi phục icon button
+function restoreButtonIcon(button, status) {
+    const icons = {
+        'processing': '<i class="fas fa-check"></i>',
+        'shipped': '<i class="fas fa-shipping-fast"></i>',
+        'delivered': '<i class="fas fa-check-double"></i>',
+        'cancelled': '<i class="fas fa-times"></i>'
+    };
+    
+    button.innerHTML = icons[status] || '<i class="fas fa-check"></i>';
+}
 </script>
 
 <?php require_once 'includes/footer.php'; ?>

@@ -444,3 +444,211 @@ a:hover {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--primary-color);
 }
+
+/* ===== Profile Page Styles ===== */
+.profile-page .tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.profile-page .tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.profile-page .list-group-item-action {
+    border: none;
+    padding: 1rem 1.5rem;
+    transition: var(--transition);
+}
+
+.profile-page .list-group-item-action:hover {
+    background-color: var(--light-color);
+    transform: translateX(5px);
+}
+
+.profile-page .list-group-item-action.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: var(--border-radius);
+    margin: 0.25rem;
+}
+
+.profile-page .avatar {
+    position: relative;
+    display: inline-block;
+}
+
+.profile-page .avatar::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    background-color: var(--success-color);
+    border: 3px solid white;
+    border-radius: 50%;
+}
+
+.profile-page .card {
+    border: none;
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+}
+
+.profile-page .card:hover {
+    box-shadow: var(--box-shadow-lg);
+    transform: translateY(-2px);
+}
+
+.profile-page .table th {
+    background-color: var(--light-color);
+    border-top: none;
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.profile-page .table td {
+    vertical-align: middle;
+    border-color: #e9ecef;
+}
+
+.profile-page .badge {
+    font-size: 0.75em;
+    padding: 0.5em 0.75em;
+}
+
+.profile-page .btn-sm {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+/* Order Status Colors */
+.profile-page .badge.bg-warning { background-color: var(--warning-color) !important; }
+.profile-page .badge.bg-info { background-color: var(--info-color) !important; }
+.profile-page .badge.bg-primary { background-color: var(--primary-color) !important; }
+.profile-page .badge.bg-success { background-color: var(--success-color) !important; }
+.profile-page .badge.bg-danger { background-color: var(--danger-color) !important; }
+
+/* Modal Styles */
+.modal-content {
+    border: none;
+    box-shadow: var(--box-shadow-lg);
+}
+
+.modal-header {
+    background-color: var(--light-color);
+    border-bottom: 1px solid #dee2e6;
+}
+
+.modal-body {
+    padding: 2rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .profile-page .col-lg-3 {
+        margin-bottom: 2rem;
+    }
+    
+    .profile-page .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .profile-page .btn-sm {
+        padding: 0.125rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* Loading Animation */
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Alert Styles */
+.alert {
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+
+.alert-info {
+    background-color: #e7f3ff;
+    color: #0c5460;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+/* ===== Cart Badge Styles ===== */
+.cart-count {
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+/* Header cart badge */
+.header-actions .cart-count {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: var(--danger-color) !important;
+    color: white;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 10;
+}
+
+/* Mobile menu cart badge */
+.offcanvas .cart-count {
+    background-color: var(--danger-color) !important;
+    color: white;
+}
+
+/* Show badge when count > 0 */
+.cart-count:not(:empty) {
+    display: inline-flex !important;
+}
+
+/* Hide badge when count is 0 or empty */
+.cart-count:empty,
+.cart-count[data-count="0"] {
+    display: none !important;
+}
+
+/* Prevent badge from disappearing during updates */
+.cart-count.updating {
+    opacity: 0.7;
+}
+
+/* Animation for cart count changes */
+.cart-count.updated {
+    animation: cartBounce 0.6s ease;
+}
+
+@keyframes cartBounce {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+}
+}

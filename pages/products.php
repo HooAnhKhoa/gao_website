@@ -26,6 +26,14 @@ $limit = ITEMS_PER_PAGE;
 $where = "p.status = ?";
 $params = [PRODUCT_ACTIVE];
 $joins = "LEFT JOIN categories c ON p.category_id = c.id";
+$ratingJoin = "LEFT JOIN (
+    SELECT product_id, 
+           AVG(rating) as avg_rating,
+           COUNT(*) as total_reviews
+    FROM reviews 
+    WHERE status = 'approved'
+    GROUP BY product_id
+) r ON p.id = r.product_id";
 
 if (!empty($search)) {
     $where .= " AND (p.name LIKE ? OR p.description LIKE ? OR p.short_description LIKE ?)";
@@ -61,7 +69,7 @@ switch ($sort) {
         $orderBy .= "p.name ASC";
         break;
     case 'popular':
-        $orderBy .= "p.total_reviews DESC, p.rating DESC";
+        $orderBy .= "COALESCE(r.total_reviews, 0) DESC, COALESCE(r.avg_rating, 0) DESC";
         break;
     case 'featured':
         $orderBy .= "p.featured DESC, p.created_at DESC";
@@ -72,7 +80,7 @@ switch ($sort) {
 }
 
 // Get total count for pagination
-$countQuery = "SELECT COUNT(*) as total FROM products p {$joins} WHERE {$where}";
+$countQuery = "SELECT COUNT(*) as total FROM products p {$joins} {$ratingJoin} WHERE {$where}";
 $totalResult = $db->selectOne($countQuery, $params);
 $totalProducts = $totalResult['total'];
 
@@ -80,10 +88,13 @@ $totalProducts = $totalResult['total'];
 $pagination = $functions->paginate($totalProducts, $page, $limit);
 $offset = $pagination['offset'];
 
-// Get products
-$productsQuery = "SELECT p.*, c.name as category_name, c.slug as category_slug 
+// Get products with rating data
+$productsQuery = "SELECT p.*, c.name as category_name, c.slug as category_slug,
+                  COALESCE(r.avg_rating, 0) as rating,
+                  COALESCE(r.total_reviews, 0) as total_reviews
                   FROM products p 
-                  {$joins} 
+                  {$joins}
+                  {$ratingJoin}
                   WHERE {$where} 
                   {$orderBy} 
                   LIMIT ? OFFSET ?";
