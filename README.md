@@ -174,18 +174,6 @@ Nếu bạn gặp vấn đề hoặc có câu hỏi:
 **Tài khoản demo:**
 - Admin: admin@gao.com / 123456
 - Khách hàng: customer@example.com / 123456
-
-## 📸 Screenshots
-
-### Trang Chủ
-![Trang chủ](screenshots/homepage.png)
-
-### Trang Sản Phẩm
-![Sản phẩm](screenshots/products.png)
-
-### Bảng Điều Khiển Admin
-![Admin Dashboard](screenshots/admin-dashboard.png)
-
 ---
 
 Được tạo với ❤️ dành cho những người yêu gạo Việt Nam
